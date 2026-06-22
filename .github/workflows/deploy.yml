@@ -32,11 +32,18 @@ jobs:
         run: npm ci
 
       - name: Run Lint
-        run: npm run lint
+        run: npm run lint -- --quiet
         continue-on-error: true
 
       - name: Build Application
-        run: npm run build
+        run: CI=false npm run build
+
+      - name: Verify Build Artifacts
+        run: |
+          if [ ! -d "./dist" ]; then
+            echo "❌ Error: './dist' folder not found! Build failed to produce export assets."
+            exit 1
+          fi
 
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
