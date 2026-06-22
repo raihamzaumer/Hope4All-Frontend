@@ -1,4 +1,4 @@
-name: Frontend CI/CD
+name: Frontend CI/CD (Hope4All)
 
 on:
   push:
@@ -16,61 +16,67 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
 
-    defaults:
-      run:
-        working-directory: frontend/Hope4All
-
     steps:
-      # 1. Checkout code
-      - name: Checkout
+      # 1. Checkout
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      # 2. Setup Node (NO CACHE = avoids your error completely)
+      # 2. Debug (IMPORTANT - removes your path issues forever)
+      - name: Show project structure
+        run: ls -R
+
+      # 3. Setup Node (NO CACHE = avoids all your previous errors)
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 20
 
-      # 3. Install dependencies (stable mode)
+      # 4. Install dependencies (explicit cd = no working-directory issues)
       - name: Install dependencies
-        run: npm ci
+        run: |
+          cd frontend/Hope4All
+          npm ci
 
-      # 4. Build Expo Web
+      # 5. Build Expo Web
       - name: Build frontend
-        run: npx expo export -p web
+        run: |
+          cd frontend/Hope4All
+          npx expo export -p web
 
-      # 5. Detect build folder safely
+      # 6. Detect build folder safely
       - name: Detect build output
         run: |
+          cd frontend/Hope4All
+
           if [ -d "dist" ]; then
-            echo "BUILD_DIR=dist" >> $GITHUB_ENV
+            echo "BUILD_DIR=frontend/Hope4All/dist" >> $GITHUB_ENV
           elif [ -d "web-build" ]; then
-            echo "BUILD_DIR=web-build" >> $GITHUB_ENV
+            echo "BUILD_DIR=frontend/Hope4All/web-build" >> $GITHUB_ENV
           else
-            echo "Build failed: no output folder found"
+            echo "❌ Build folder not found"
             exit 1
           fi
 
-      # 6. Configure AWS
-      - name: AWS Credentials
+      # 7. Configure AWS
+      - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
-      # 7. Deploy to S3
-      - name: Upload to S3
+      # 8. Upload to S3
+      - name: Deploy to S3
         run: |
           aws s3 sync $BUILD_DIR s3://$S3_BUCKET_NAME --delete
 
-      # 8. CloudFront invalidate
+      # 9. CloudFront invalidation
       - name: Invalidate CloudFront
         run: |
           aws cloudfront create-invalidation \
             --distribution-id $CLOUDFRONT_DISTRIBUTION_ID \
             --paths "/*"
 
-      # 9. Done
-      - name: Success
-        run: echo "Frontend deployed successfully 🚀"
+      # 10. Success
+      - name: Done
+        run: echo "🚀 Deployment successful"
