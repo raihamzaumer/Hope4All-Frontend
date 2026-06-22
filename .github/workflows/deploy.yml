@@ -11,6 +11,7 @@ env:
   AWS_REGION: ${{ secrets.AWS_REGION }}
   S3_BUCKET_NAME: ${{ secrets.S3_BUCKET_NAME }}
   CLOUDFRONT_DISTRIBUTION_ID: ${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }}
+  EXPO_PUBLIC_API_URL: ${{ secrets.EXPO_PUBLIC_API_URL }}
 
 jobs:
   deploy:

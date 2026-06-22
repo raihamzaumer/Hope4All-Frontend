@@ -22,3 +22,8 @@ export const CONFIG = {
   // SOCKET_URL: `http://${hostIP}:5000`,
   ENVIRONMENT: 'production',
 };
+
+
+
+
+
