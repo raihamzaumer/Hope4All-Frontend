@@ -1,4 +1,4 @@
-name: Frontend CI/CD (Production)
+name: Frontend CI/CD
 
 on:
   push:
@@ -13,7 +13,7 @@ env:
   CLOUDFRONT_DISTRIBUTION_ID: ${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }}
 
 jobs:
-  build-and-deploy:
+  deploy:
     runs-on: ubuntu-latest
 
     defaults:
@@ -21,85 +21,56 @@ jobs:
         working-directory: frontend/Hope4All
 
     steps:
-      # ---------------------------
-      # 1. Checkout
-      # ---------------------------
-      - name: Checkout code
+      # 1. Checkout code
+      - name: Checkout
         uses: actions/checkout@v4
 
-      # ---------------------------
-      # 2. Setup Node (stable + cache fixed)
-      # ---------------------------
+      # 2. Setup Node (NO CACHE = avoids your error completely)
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: npm
-          cache-dependency-path: frontend/Hope4All/package-lock.json
 
-      # ---------------------------
-      # 3. Install dependencies (FAST)
-      # ---------------------------
+      # 3. Install dependencies (stable mode)
       - name: Install dependencies
-        run: npm ci --prefer-offline --no-audit
+        run: npm ci
 
-      # ---------------------------
-      # 4. Lint (non-blocking optional)
-      # ---------------------------
-      - name: Lint code
-        run: npm run lint --silent
-        continue-on-error: true
-
-      # ---------------------------
-      # 5. Build (Expo Web)
-      # ---------------------------
-      - name: Build web app
+      # 4. Build Expo Web
+      - name: Build frontend
         run: npx expo export -p web
 
-      # ---------------------------
-      # 6. Detect build folder safely
-      # ---------------------------
-      - name: Verify build output
+      # 5. Detect build folder safely
+      - name: Detect build output
         run: |
           if [ -d "dist" ]; then
             echo "BUILD_DIR=dist" >> $GITHUB_ENV
           elif [ -d "web-build" ]; then
             echo "BUILD_DIR=web-build" >> $GITHUB_ENV
           else
-            echo "❌ No build folder found"
+            echo "Build failed: no output folder found"
             exit 1
           fi
 
-      # ---------------------------
-      # 7. AWS credentials
-      # ---------------------------
-      - name: Configure AWS credentials
+      # 6. Configure AWS
+      - name: AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
-      # ---------------------------
-      # 8. Deploy to S3 (FAST sync)
-      # ---------------------------
-      - name: Deploy to S3
+      # 7. Deploy to S3
+      - name: Upload to S3
         run: |
-          aws s3 sync $BUILD_DIR s3://$S3_BUCKET_NAME \
-            --delete \
-            --only-show-errors
+          aws s3 sync $BUILD_DIR s3://$S3_BUCKET_NAME --delete
 
-      # ---------------------------
-      # 9. CloudFront Invalidation (optimized)
-      # ---------------------------
-      - name: Invalidate CloudFront cache
+      # 8. CloudFront invalidate
+      - name: Invalidate CloudFront
         run: |
           aws cloudfront create-invalidation \
             --distribution-id $CLOUDFRONT_DISTRIBUTION_ID \
             --paths "/*"
 
-      # ---------------------------
-      # 10. Done
-      # ---------------------------
-      - name: Deployment complete
-        run: echo "🚀 Frontend deployed successfully"
+      # 9. Done
+      - name: Success
+        run: echo "Frontend deployed successfully 🚀"
