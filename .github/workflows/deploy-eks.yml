@@ -1,0 +1,53 @@
+name: Frontend EKS CI/CD
+
+on:
+  push:
+    branches:
+      - eks
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout frontend code
+        uses: actions/checkout@v4
+
+      - name: Checkout Helm chart
+        uses: actions/checkout@v4
+        with:
+          repository: hamza-umer/hope4all-helm
+          token: ${{ secrets.HELM_REPO_TOKEN }}
+          path: helm-charts
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Login to ECR
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build and push image
+        run: |
+          docker build \
+            --build-arg EXPO_PUBLIC_API_URL=https://hope4all.hamzaweb.shop/api \
+            --build-arg EXPO_PUBLIC_SOCKET_URL=https://hope4all.hamzaweb.shop \
+            -t ${{ secrets.ECR_REGISTRY }}/${{ secrets.ECR_REPOSITORY_FRONTEND }}:${{ github.sha }} \
+            -t ${{ secrets.ECR_REGISTRY }}/${{ secrets.ECR_REPOSITORY_FRONTEND }}:latest .
+          docker push ${{ secrets.ECR_REGISTRY }}/${{ secrets.ECR_REPOSITORY_FRONTEND }}:${{ github.sha }}
+          docker push ${{ secrets.ECR_REGISTRY }}/${{ secrets.ECR_REPOSITORY_FRONTEND }}:latest
+
+      - name: Update kubeconfig
+        run: |
+          aws eks update-kubeconfig --name ${{ secrets.CLUSTER_NAME }} --region ${{ secrets.AWS_REGION }}
+
+      - name: Helm upgrade
+        run: |
+          helm upgrade --install ${{ secrets.HELM_RELEASE }} ./helm-charts/hope4all \
+            --namespace hope4all \
+            --create-namespace \
+            --set frontend.tag=${{ github.sha }} \
+            --wait
