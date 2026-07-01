@@ -46,7 +46,7 @@ jobs:
 
       - name: Helm upgrade
         run: |
-          helm upgrade --install ${{ secrets.HELM_RELEASE }} ./helm-charts/hope4all \
+          helm upgrade --install ${{ secrets.HELM_RELEASE }} ./helm-charts \
             --namespace hope4all \
             --create-namespace \
             --set frontend.tag=${{ github.sha }} \
