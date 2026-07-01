@@ -46,8 +46,8 @@ jobs:
 
       - name: Helm upgrade
         run: |
+          kubectl create namespace hope4all --dry-run=client -o yaml | kubectl apply -f -
           helm upgrade --install ${{ secrets.HELM_RELEASE }} ./helm-charts \
             --namespace hope4all \
-            --create-namespace \
             --set frontend.tag=${{ github.sha }} \
             --wait
